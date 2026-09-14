@@ -1,0 +1,1186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Forward Pass Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --paper:#f6f7f9;
+    --surface:#ffffff;
+    --surface-inset:#eceef2;
+    --ink:#131722;
+    --ink-dim:#5b6472;
+    --ink-faint:#8b93a1;
+    --accent:#0c8c8c;
+    --accent-bright:#08a3a3;
+    --accent-soft:#cdedea;
+    --neg:#c9622a;
+    --neg-soft:#f3dcc9;
+    --line:#d7dbe2;
+    --line-strong:#b7bdc8;
+    --shadow: 0 1px 2px rgba(19,23,34,0.06), 0 8px 24px -12px rgba(19,23,34,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0f1218;
+      --surface:#171b24;
+      --surface-inset:#0b0e14;
+      --ink:#e8eaf0;
+      --ink-dim:#a7aebb;
+      --ink-faint:#6c7383;
+      --accent:#2dd4c8;
+      --accent-bright:#3fe6da;
+      --accent-soft:rgba(45,212,200,0.16);
+      --neg:#e08a4b;
+      --neg-soft:rgba(224,138,75,0.16);
+      --line:#2a2f3b;
+      --line-strong:#3a4150;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0f1218;
+    --surface:#171b24;
+    --surface-inset:#0b0e14;
+    --ink:#e8eaf0;
+    --ink-dim:#a7aebb;
+    --ink-faint:#6c7383;
+    --accent:#2dd4c8;
+    --accent-bright:#3fe6da;
+    --accent-soft:rgba(45,212,200,0.16);
+    --neg:#e08a4b;
+    --neg-soft:rgba(224,138,75,0.16);
+    --line:#2a2f3b;
+    --line-strong:#3a4150;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 32px -16px rgba(0,0,0,0.6);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:"IBM Plex Sans", system-ui, sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .num{ font-family:"IBM Plex Mono", ui-monospace, monospace; font-variant-numeric:tabular-nums; }
+  h1,h2,h3{ font-family:"Archivo", system-ui, sans-serif; text-wrap:balance; margin:0; }
+
+  .wrap{
+    max-width:1180px;
+    margin:0 auto;
+    padding:22px 22px 56px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+  }
+
+  /* ---------- header ---------- */
+  header{
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:24px;
+    flex-wrap:wrap;
+  }
+  .title-block .eyebrow{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    font-weight:600;
+    margin-bottom:6px;
+  }
+  .title-block h1{
+    font-size:clamp(22px,3vw,30px);
+    font-weight:800;
+    letter-spacing:-0.01em;
+  }
+  .title-block p{
+    margin:6px 0 0;
+    color:var(--ink-dim);
+    font-size:14px;
+    max-width:46ch;
+  }
+
+  .controls{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .btn{
+    font-family:"IBM Plex Sans",sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border:1px solid var(--line-strong);
+    background:var(--surface);
+    color:var(--ink);
+    padding:9px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    display:inline-flex;
+    align-items:center;
+    gap:7px;
+    transition:border-color .15s ease, background .15s ease, transform .1s ease;
+  }
+  .btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .btn.primary{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#04201f;
+  }
+  .btn.primary:hover{ background:var(--accent-bright); border-color:var(--accent-bright); color:#04201f; }
+  .btn:disabled{ opacity:.4; cursor:not-allowed; }
+  .btn:disabled:hover{ border-color:var(--line-strong); color:var(--ink); }
+
+  .switch{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-size:13px;
+    font-weight:500;
+    color:var(--ink-dim);
+    cursor:pointer;
+    user-select:none;
+  }
+  .switch input{ position:absolute; opacity:0; width:1px; height:1px; }
+  .switch .track{
+    width:36px; height:20px; border-radius:999px;
+    background:var(--surface-inset);
+    border:1px solid var(--line-strong);
+    position:relative;
+    transition:background .15s ease, border-color .15s ease;
+    flex:none;
+  }
+  .switch .thumb{
+    position:absolute; top:1px; left:1px;
+    width:16px; height:16px; border-radius:50%;
+    background:var(--ink-faint);
+    transition:transform .15s ease, background .15s ease;
+  }
+  .switch input:checked + .track{ background:var(--accent-soft); border-color:var(--accent); }
+  .switch input:checked + .track .thumb{ transform:translateX(16px); background:var(--accent); }
+  .switch input:focus-visible + .track{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  .tabs{
+    display:inline-flex;
+    background:var(--surface-inset);
+    border:1px solid var(--line);
+    border-radius:9px;
+    padding:3px;
+    gap:2px;
+  }
+  .tabs button{
+    font-family:"IBM Plex Sans",sans-serif;
+    font-size:13px;
+    font-weight:600;
+    border:none;
+    background:transparent;
+    color:var(--ink-dim);
+    padding:7px 13px;
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .tabs button.active{
+    background:var(--surface);
+    color:var(--ink);
+    box-shadow:var(--shadow);
+  }
+  .tabs button:disabled{ opacity:.45; cursor:not-allowed; }
+  .tabs button:focus-visible{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+  /* ---------- stage ---------- */
+  .stage{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    padding:6px;
+    display:grid;
+    grid-template-columns:1fr 300px;
+    gap:6px;
+  }
+  @media (max-width: 860px){
+    .stage{ grid-template-columns:1fr; }
+  }
+
+  .canvas-pane{
+    position:relative;
+    border-radius:12px;
+    overflow:hidden;
+    background:
+      radial-gradient(circle at 1px 1px, var(--line) 1px, transparent 0) 0 0/24px 24px,
+      var(--surface);
+  }
+  svg#net{ display:block; width:100%; height:auto; }
+
+  .node circle{
+    fill:var(--surface);
+    stroke:var(--line-strong);
+    stroke-width:2;
+    transition:stroke .2s ease, fill .2s ease, filter .2s ease;
+  }
+  .node.layer-in circle{ fill:var(--surface-inset); }
+  .node text{
+    font-family:"IBM Plex Mono", monospace;
+    fill:var(--ink);
+    text-anchor:middle;
+    dominant-baseline:middle;
+    font-size:22px;
+    font-weight:500;
+    transition:fill .2s ease;
+  }
+  .node .placeholder{ fill:var(--ink-faint); }
+  .node .tag{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12px;
+    fill:var(--ink-faint);
+    text-anchor:middle;
+  }
+  .node.hit circle{ cursor:pointer; }
+  .node.hit:focus{ outline:none; }
+  .node.hit:focus-visible{ outline:2px solid var(--accent); outline-offset:4px; }
+  .node.active circle{ stroke:var(--accent); filter:drop-shadow(0 0 6px var(--accent-soft)); }
+  .node.active text{ fill:var(--accent); }
+  .node.dim{ opacity:.32; }
+
+  .edge{
+    stroke:var(--line-strong);
+    stroke-width:1.6;
+    fill:none;
+    transition:stroke .2s ease, stroke-width .2s ease, opacity .2s ease;
+  }
+  .edge.pos{ stroke:var(--accent); }
+  .edge.neg{ stroke:var(--neg); }
+  .edge.active{ stroke-width:3.2; filter:drop-shadow(0 0 4px currentColor); }
+  .edge.dim{ opacity:.14; }
+
+  .wlabel rect{
+    fill:var(--surface);
+    stroke:var(--line);
+    stroke-width:1;
+  }
+  .wlabel text{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:13px;
+    font-weight:500;
+    text-anchor:middle;
+    dominant-baseline:middle;
+  }
+  .wlabel.pos text{ fill:var(--accent); }
+  .wlabel.neg text{ fill:var(--neg); }
+  .wlabel.dim{ opacity:.2; }
+  .wlabel.active rect{ stroke:currentColor; }
+
+  .flow-guide line{ stroke:var(--ink-faint); stroke-dasharray:2 5; stroke-width:1.4; }
+  .flow-guide path{ fill:var(--ink-faint); }
+  .layer-label{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:13px;
+    letter-spacing:.06em;
+    fill:var(--ink-dim);
+  }
+
+  /* narrative / readout panel */
+  .side-pane{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+  }
+  .panel{
+    background:var(--surface-inset);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+  }
+  .readout{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-height:180px;
+  }
+  .readout .label{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    letter-spacing:.1em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+  }
+  .readout .title{
+    font-family:"Archivo", sans-serif;
+    font-weight:700;
+    font-size:16px;
+  }
+  .readout .formula{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:12px 14px;
+    font-family:"IBM Plex Mono", monospace;
+    font-size:13.5px;
+    line-height:1.7;
+    color:var(--ink);
+    white-space:pre-wrap;
+    word-break:break-word;
+    flex:1;
+  }
+  .readout .formula .muted{ color:var(--ink-faint); }
+  .readout .formula .hi{ color:var(--accent); font-weight:600; }
+  .readout .empty{
+    color:var(--ink-faint);
+    font-size:13px;
+    font-style:normal;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    flex:1;
+    padding:12px;
+    border:1px dashed var(--line-strong);
+    border-radius:8px;
+  }
+
+  .narrative p{
+    margin:0;
+    font-size:14.5px;
+    line-height:1.55;
+    color:var(--ink);
+  }
+  .narrative .step-count{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:11px;
+    color:var(--ink-faint);
+    margin-bottom:8px;
+    letter-spacing:.06em;
+  }
+  .step-nav{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+    margin-top:14px;
+  }
+  .dots{ display:flex; gap:5px; }
+  .dots span{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--line-strong);
+  }
+  .dots span.on{ background:var(--accent); }
+  .skip-link{
+    display:inline-block;
+    margin-top:10px;
+    font-size:12.5px;
+    color:var(--ink-faint);
+    text-decoration:underline;
+    text-decoration-color:var(--line-strong);
+    background:none; border:none; cursor:pointer;
+    font-family:"IBM Plex Sans", sans-serif;
+    padding:0;
+  }
+  .skip-link:hover{ color:var(--accent); }
+
+  /* legend */
+  .legend{
+    display:flex;
+    gap:18px;
+    flex-wrap:wrap;
+    align-items:center;
+    font-size:12px;
+    color:var(--ink-dim);
+    padding:12px 18px;
+  }
+  .legend .swatch{ display:inline-flex; align-items:center; gap:6px; }
+  .legend .line{ width:20px; height:2px; border-radius:2px; display:inline-block; }
+
+  /* ---------- console drawer ---------- */
+  .console{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:16px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .console-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:14px 18px;
+    cursor:pointer;
+    user-select:none;
+  }
+  .console-head h2{ font-size:15px; font-weight:700; }
+  .console-head .hint{ font-size:12px; color:var(--ink-faint); font-weight:500; margin-top:2px; }
+  .console-head .chev{ transition:transform .2s ease; color:var(--ink-faint); }
+  .console.open .chev{ transform:rotate(180deg); }
+
+  .console-body{
+    max-height:0;
+    overflow:hidden;
+    transition:max-height .25s ease;
+  }
+  .console.open .console-body{ max-height:900px; }
+
+  .locked-note{
+    margin:0 18px 18px;
+    padding:14px 16px;
+    background:var(--surface-inset);
+    border:1px dashed var(--line-strong);
+    border-radius:10px;
+    font-size:13px;
+    color:var(--ink-dim);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+
+  .fader-groups{
+    padding:0 18px 20px;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:18px;
+  }
+  @media (max-width:780px){ .fader-groups{ grid-template-columns:1fr; } }
+
+  .fader-group h3{
+    font-size:12px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color:var(--ink-faint);
+    font-weight:600;
+    margin-bottom:10px;
+    font-family:"IBM Plex Mono", monospace;
+  }
+  .fader{
+    display:grid;
+    grid-template-columns:52px 1fr 48px;
+    align-items:center;
+    gap:10px;
+    margin-bottom:10px;
+  }
+  .fader label{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12px;
+    color:var(--ink-dim);
+  }
+  .fader output{
+    font-family:"IBM Plex Mono", monospace;
+    font-size:12.5px;
+    text-align:right;
+    color:var(--ink);
+  }
+  input[type="range"]{
+    -webkit-appearance:none;
+    appearance:none;
+    width:100%;
+    height:20px;
+    background:transparent;
+    cursor:pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track{
+    height:4px;
+    background:var(--line-strong);
+    border-radius:2px;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:14px; height:20px;
+    margin-top:-8px;
+    background:var(--surface);
+    border:2px solid var(--accent);
+    border-radius:3px;
+  }
+  input[type="range"]::-moz-range-track{
+    height:4px;
+    background:var(--line-strong);
+    border-radius:2px;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:12px; height:20px;
+    background:var(--surface);
+    border:2px solid var(--accent);
+    border-radius:3px;
+  }
+  input[type="range"]:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  footer{
+    text-align:center;
+    color:var(--ink-faint);
+    font-size:12px;
+    padding-top:4px;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition:none !important; animation:none !important; }
+  }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="title-block">
+      <div class="eyebrow">Neural network lab</div>
+      <h1>Forward Pass Console</h1>
+      <p>Watch a value travel through a 3&ndash;2&ndash;3 network: every input multiplied by a weight, summed at the next layer, all the way to the output.</p>
+    </div>
+    <div class="controls">
+      <label class="switch">
+        <input type="checkbox" id="activationToggle">
+        <span class="track"><span class="thumb"></span></span>
+        <span>Sigmoid activation</span>
+      </label>
+      <button class="btn" id="randomizeBtn">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/></svg>
+        New random example
+      </button>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Mode">
+    <button id="tabWalk" class="active" role="tab" aria-selected="true">Walkthrough</button>
+    <button id="tabFree" role="tab" aria-selected="false">Free play</button>
+  </div>
+
+  <div class="stage">
+    <div class="canvas-pane">
+      <svg id="net" viewBox="0 0 1000 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Neural network diagram, three inputs, two hidden units, three outputs"></svg>
+      <div class="legend">
+        <span class="swatch"><span class="line" style="background:var(--accent)"></span> positive weight</span>
+        <span class="swatch"><span class="line" style="background:var(--neg)"></span> negative weight</span>
+        <span class="swatch">line thickness &prop; |weight|</span>
+        <span class="swatch">click a hidden or output node to trace its path</span>
+      </div>
+    </div>
+
+    <div class="side-pane">
+      <div class="panel readout" id="readoutPanel">
+        <div class="label">Live calculation</div>
+        <div id="readoutBody" class="empty">Hover or click a hidden / output node to see how its value is computed.</div>
+      </div>
+
+      <div class="panel narrative" id="walkPanel">
+        <div class="step-count" id="stepCount">STEP 1 / 8</div>
+        <p id="stepText"></p>
+        <div class="step-nav">
+          <button class="btn" id="backBtn">&larr; Back</button>
+          <div class="dots" id="dots"></div>
+          <button class="btn primary" id="nextBtn">Next &rarr;</button>
+        </div>
+        <button class="skip-link" id="skipBtn">Skip ahead to free play &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="console" id="console">
+    <div class="console-head" id="consoleHead">
+      <div>
+        <h2>Manual controls</h2>
+        <div class="hint" id="consoleHint">Every input and weight, live</div>
+      </div>
+      <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="console-body">
+      <div class="locked-note" id="lockedNote">
+        <span>Locked until the walkthrough finishes &mdash; or press &ldquo;Skip ahead&rdquo; above.</span>
+      </div>
+      <div class="fader-groups" id="faderGroups" style="display:none;"></div>
+    </div>
+  </div>
+
+  <footer>Values regenerate on load. Weights are excluded from 0 so every connection does something.</footer>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var NUM_IN = 3, NUM_HID = 2, NUM_OUT = 3;
+
+  var X = {
+    in:  [180, 400, 620],
+    hid: [290, 510],
+    out: [180, 400, 620]
+  };
+  var Y = { in: 560, hid: 340, out: 120 };
+  var R = { in: 32, hid: 36, out: 32 };
+
+  var state = {
+    inputs: [0,0,0],
+    wIH: [[0,0],[0,0],[0,0]],   // wIH[i][h]
+    wHO: [[0,0,0],[0,0,0]],     // wHO[h][o]
+    activation: false,
+    mode: 'walk',               // 'walk' | 'free'
+    step: 0,
+    freeUnlocked: false,
+    pinned: null,                // {type:'hidden'|'output', index}
+    hover: null
+  };
+
+  var computed = { hiddenRaw:[0,0], hiddenVal:[0,0], outputRaw:[0,0,0], outputVal:[0,0,0] };
+
+  function sigmoid(x){ return 1/(1+Math.exp(-x)); }
+  function fmt(n){ return (n<0?"":"") + n.toFixed(2); }
+  function fmtParen(n){ return n<0 ? "(" + n.toFixed(2) + ")" : n.toFixed(2); }
+  function rand(min,max){ return Math.random()*(max-min)+min; }
+  function roundTenth(n){ return Math.round(n*10)/10; }
+
+  function randInput(){ return roundTenth(rand(0,1)); }
+  function randWeight(){
+    var v;
+    do { v = roundTenth(rand(-1,1)); } while(v === 0);
+    return v;
+  }
+
+  function randomizeAll(){
+    state.inputs = [randInput(), randInput(), randInput()];
+    state.wIH = [[randWeight(),randWeight()],[randWeight(),randWeight()],[randWeight(),randWeight()]];
+    state.wHO = [[randWeight(),randWeight(),randWeight()],[randWeight(),randWeight(),randWeight()]];
+    state.step = 0;
+    state.pinned = null;
+    state.hover = null;
+  }
+
+  function compute(){
+    for(var h=0; h<NUM_HID; h++){
+      var s = 0;
+      for(var i=0; i<NUM_IN; i++) s += state.inputs[i]*state.wIH[i][h];
+      computed.hiddenRaw[h] = s;
+      computed.hiddenVal[h] = state.activation ? sigmoid(s) : s;
+    }
+    for(var o=0; o<NUM_OUT; o++){
+      var s2 = 0;
+      for(var h2=0; h2<NUM_HID; h2++) s2 += computed.hiddenVal[h2]*state.wHO[h2][o];
+      computed.outputRaw[o] = s2;
+      computed.outputVal[o] = state.activation ? sigmoid(s2) : s2;
+    }
+  }
+
+  // ---------------- walkthrough step model ----------------
+  var STEPS = [];
+  (function buildSteps(){
+    STEPS.push({type:'intro'});
+    for(var h=0; h<NUM_HID; h++) STEPS.push({type:'hidden', index:h});
+    STEPS.push({type:'hiddenDone'});
+    for(var o=0; o<NUM_OUT; o++) STEPS.push({type:'output', index:o});
+    STEPS.push({type:'done'});
+  })();
+
+  function revealStepFor(type, index){
+    for(var i=0;i<STEPS.length;i++){
+      var s = STEPS[i];
+      if(s.type===type && s.index===index) return i;
+    }
+    return 0;
+  }
+
+  function narrativeFor(step){
+    var s = STEPS[step];
+    if(s.type==='intro'){
+      return "This network has 3 inputs, 2 hidden units, and 3 outputs. Every connection carries a weight — a number the signal gets multiplied by on its way through. Press Next to send these input values forward.";
+    }
+    if(s.type==='hidden'){
+      var h=s.index;
+      return "Hidden unit H"+(h+1)+" sums every input, each multiplied by its connection weight. Watch the readout on the right.";
+    }
+    if(s.type==='hiddenDone'){
+      return "Both hidden units are computed. Their values now act as the inputs to the output layer — the network repeats the exact same operation one layer up.";
+    }
+    if(s.type==='output'){
+      var o=s.index;
+      return "Output O"+(o+1)+" sums the hidden layer's values, each multiplied by its weight into this node — same rule, new layer.";
+    }
+    if(s.type==='done'){
+      return "That's a full forward pass: input → weighted sum → hidden values → weighted sum → output. Unlock manual controls below to try your own numbers.";
+    }
+    return "";
+  }
+
+  // ---------------- SVG build ----------------
+  var svg = document.getElementById('net');
+  var svgns = "http://www.w3.org/2000/svg";
+  function el(tag, attrs){
+    var e = document.createElementNS(svgns, tag);
+    for(var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+
+  var staticLayer = el('g', {id:'staticLayer'});
+  var edgeLayer = el('g', {id:'edgeLayer'});
+  var labelLayer = el('g', {id:'labelLayer'});
+  var nodeLayer = el('g', {id:'nodeLayer'});
+  svg.appendChild(staticLayer);
+  svg.appendChild(edgeLayer);
+  svg.appendChild(labelLayer);
+  svg.appendChild(nodeLayer);
+
+  function buildStatic(){
+    // flow guide arrow, right side
+    var g = el('g', {'class':'flow-guide'});
+    g.appendChild(el('line', {x1:945, y1:560, x2:945, y2:105}));
+    g.appendChild(el('path', {d:'M 945 90 L 936 108 L 954 108 Z'}));
+    staticLayer.appendChild(g);
+
+    var labels = [
+      {y:Y.in, t:'INPUT LAYER'},
+      {y:Y.hid, t:'HIDDEN LAYER'},
+      {y:Y.out, t:'OUTPUT LAYER'}
+    ];
+    labels.forEach(function(l){
+      staticLayer.appendChild(el('text', Object.assign({x:865, y:l.y+5, 'class':'layer-label', 'text-anchor':'start'})));
+    });
+    // set text content
+    var texts = staticLayer.querySelectorAll('text.layer-label');
+    texts.forEach(function(t,i){ t.textContent = labels[i].t; });
+  }
+  buildStatic();
+
+  function nodeId(type, index){ return type+'-'+index; }
+  function edgeId(a,b){ return a+'__'+b; }
+
+  function buildEdges(){
+    edgeLayer.innerHTML = '';
+    for(var i=0;i<NUM_IN;i++){
+      for(var h=0;h<NUM_HID;h++){
+        var line = el('line', {
+          id:'edge-ih-'+i+'-'+h,
+          'class':'edge',
+          x1:X.in[i], y1:Y.in-R.in, x2:X.hid[h], y2:Y.hid+R.hid
+        });
+        edgeLayer.appendChild(line);
+      }
+    }
+    for(var h2=0;h2<NUM_HID;h2++){
+      for(var o=0;o<NUM_OUT;o++){
+        var line2 = el('line', {
+          id:'edge-ho-'+h2+'-'+o,
+          'class':'edge',
+          x1:X.hid[h2], y1:Y.hid-R.hid, x2:X.out[o], y2:Y.out+R.out
+        });
+        edgeLayer.appendChild(line2);
+      }
+    }
+  }
+  buildEdges();
+
+  function buildWeightLabels(){
+    labelLayer.innerHTML = '';
+    for(var i=0;i<NUM_IN;i++){
+      for(var h=0;h<NUM_HID;h++){
+        addWeightLabel('lbl-ih-'+i+'-'+h, X.in[i], Y.in-R.in, X.hid[h], Y.hid+R.hid, 0.32 + 0.14*i);
+      }
+    }
+    for(var h2=0;h2<NUM_HID;h2++){
+      for(var o=0;o<NUM_OUT;o++){
+        addWeightLabel('lbl-ho-'+h2+'-'+o, X.hid[h2], Y.hid-R.hid, X.out[o], Y.out+R.out, 0.34 + 0.13*o);
+      }
+    }
+  }
+  function addWeightLabel(id, x1,y1,x2,y2, t){
+    var mx = x1 + (x2-x1)*t;
+    var my = y1 + (y2-y1)*t;
+    var g = el('g', {id:id, 'class':'wlabel'});
+    g.appendChild(el('rect', {x:mx-22, y:my-11, width:44, height:22, rx:5}));
+    var txt = el('text', {x:mx, y:my+1});
+    g.appendChild(txt);
+    g.dataset ? null : null;
+    g.setAttribute('data-mx', mx);
+    g.setAttribute('data-my', my);
+    labelLayer.appendChild(g);
+  }
+  buildWeightLabels();
+
+  function buildNodes(){
+    nodeLayer.innerHTML = '';
+    for(var i=0;i<NUM_IN;i++) addNode('in', i, X.in[i], Y.in, R.in, false);
+    for(var h=0;h<NUM_HID;h++) addNode('hid', h, X.hid[h], Y.hid, R.hid, true);
+    for(var o=0;o<NUM_OUT;o++) addNode('out', o, X.out[o], Y.out, R.out, true);
+  }
+  function addNode(type, index, cx, cy, r, interactive){
+    var id = nodeId(type,index);
+    var g = el('g', {id:'node-'+id, 'class':'node layer-'+type + (interactive?' hit':'')});
+    g.appendChild(el('circle', {cx:cx, cy:cy, r:r}));
+    g.appendChild(el('text', {x:cx, y:cy+1, id:'val-'+id}));
+    var tagText = type==='in' ? 'x'+(index+1) : (type==='hid' ? 'H'+(index+1) : 'O'+(index+1));
+    var tag = el('text', {x:cx, y:cy-r-10, 'class':'tag'});
+    tag.textContent = tagText;
+    g.appendChild(tag);
+    if(interactive){
+      var selType = type==='hid' ? 'hidden' : 'output';
+      g.addEventListener('mouseenter', function(t,idx){ return function(){ state.hover = {type:t,index:idx}; render(); }; }(selType,index));
+      g.addEventListener('mouseleave', function(){ state.hover = null; render(); });
+      g.addEventListener('click', function(t,idx){ return function(){
+        if(state.pinned && state.pinned.type===t && state.pinned.index===idx){ state.pinned = null; }
+        else { state.pinned = {type:t, index:idx}; }
+        render();
+      }; }(selType,index));
+      g.setAttribute('tabindex','0');
+      g.addEventListener('keydown', function(t,idx){ return function(e){
+        if(e.key==='Enter' || e.key===' '){
+          e.preventDefault();
+          if(state.pinned && state.pinned.type===t && state.pinned.index===idx){ state.pinned = null; }
+          else { state.pinned = {type:t, index:idx}; }
+          render();
+        }
+      }; }(selType,index));
+    }
+    nodeLayer.appendChild(g);
+  }
+  buildNodes();
+
+  // ---------------- highlight helpers ----------------
+  function highlightFor(sel){
+    // returns {nodes:Set, edges:Set} or null (no highlight -> full opacity)
+    if(!sel) return null;
+    var nodes = new Set(), edges = new Set();
+    if(sel.type==='hidden'){
+      var h = sel.index;
+      nodes.add(nodeId('hid',h));
+      for(var i=0;i<NUM_IN;i++){ nodes.add(nodeId('in',i)); edges.add('edge-ih-'+i+'-'+h); }
+    } else if(sel.type==='output'){
+      var o = sel.index;
+      nodes.add(nodeId('out',o));
+      for(var h2=0;h2<NUM_HID;h2++){
+        nodes.add(nodeId('hid',h2));
+        edges.add('edge-ho-'+h2+'-'+o);
+        for(var i2=0;i2<NUM_IN;i2++){ nodes.add(nodeId('in',i2)); edges.add('edge-ih-'+i2+'-'+h2); }
+      }
+    } else if(sel.type==='all'){
+      return null;
+    } else if(sel.type==='inputsOnly'){
+      for(var i3=0;i3<NUM_IN;i3++) nodes.add(nodeId('in',i3));
+    }
+    return {nodes:nodes, edges:edges};
+  }
+
+  function stepHighlight(step){
+    var s = STEPS[step];
+    if(s.type==='intro') return {type:'inputsOnly'};
+    if(s.type==='hidden') return {type:'hidden', index:s.index};
+    if(s.type==='hiddenDone') return null;
+    if(s.type==='output') return {type:'output', index:s.index};
+    if(s.type==='done') return null;
+    return null;
+  }
+
+  // ---------------- formula panel ----------------
+  function edgeSign(v){ return v>=0 ? 'pos' : 'neg'; }
+
+  function formulaHTML(sel){
+    if(!sel) return null;
+    if(sel.type==='hidden'){
+      var h = sel.index;
+      var terms = [];
+      for(var i=0;i<NUM_IN;i++){
+        terms.push('<span class="'+ (state.wIH[i][h]>=0?'hi':'muted') +'">'+fmt(state.inputs[i])+'</span> &times; <span class="'+edgeSign(state.wIH[i][h])+'-t">'+fmtParen(state.wIH[i][h])+'</span>');
+      }
+      var raw = computed.hiddenRaw[h];
+      var out = '<div class="title">Hidden unit H'+(h+1)+'</div>';
+      out += '<div class="formula">';
+      out += 'H'+(h+1)+' = ' + terms.join('  +  ') + '\n';
+      out += 'H'+(h+1)+' = <span class="hi">'+fmt(raw)+'</span>';
+      if(state.activation){
+        out += '\nσ(' + fmt(raw) + ') = <span class="hi">' + fmt(sigmoid(raw)) + '</span>';
+      }
+      out += '</div>';
+      return out;
+    }
+    if(sel.type==='output'){
+      var o = sel.index;
+      var terms2 = [];
+      for(var h2=0;h2<NUM_HID;h2++){
+        terms2.push('<span class="hi">'+fmt(computed.hiddenVal[h2])+'</span> &times; <span class="'+edgeSign(state.wHO[h2][o])+'-t">'+fmtParen(state.wHO[h2][o])+'</span>');
+      }
+      var raw2 = computed.outputRaw[o];
+      var out2 = '<div class="title">Output O'+(o+1)+'</div>';
+      out2 += '<div class="formula">';
+      out2 += 'using  H1 = '+fmt(computed.hiddenVal[0])+'   H2 = '+fmt(computed.hiddenVal[1])+'\n\n';
+      out2 += 'O'+(o+1)+' = ' + terms2.join('  +  ') + '\n';
+      out2 += 'O'+(o+1)+' = <span class="hi">'+fmt(raw2)+'</span>';
+      if(state.activation){
+        out2 += '\nσ(' + fmt(raw2) + ') = <span class="hi">' + fmt(sigmoid(raw2)) + '</span>';
+      }
+      out2 += '</div>';
+      return out2;
+    }
+    return null;
+  }
+
+  // ---------------- render ----------------
+  function render(){
+    // node values
+    for(var i=0;i<NUM_IN;i++){
+      var t = document.getElementById('val-in-'+i);
+      t.textContent = fmt(state.inputs[i]);
+      t.classList.remove('placeholder');
+    }
+    for(var h=0;h<NUM_HID;h++){
+      var revealed = state.mode==='free' || state.step >= revealStepFor('hidden',h);
+      var t2 = document.getElementById('val-hid-'+h);
+      if(revealed){ t2.textContent = fmt(computed.hiddenVal[h]); t2.classList.remove('placeholder'); }
+      else { t2.textContent = '?'; t2.classList.add('placeholder'); }
+    }
+    for(var o=0;o<NUM_OUT;o++){
+      var revealedO = state.mode==='free' || state.step >= revealStepFor('output',o);
+      var t3 = document.getElementById('val-out-'+o);
+      if(revealedO){ t3.textContent = fmt(computed.outputVal[o]); t3.classList.remove('placeholder'); }
+      else { t3.textContent = '?'; t3.classList.add('placeholder'); }
+    }
+
+    // weight labels
+    for(var i2=0;i2<NUM_IN;i2++){
+      for(var h2=0;h2<NUM_HID;h2++){
+        setWeightLabel('lbl-ih-'+i2+'-'+h2, state.wIH[i2][h2]);
+      }
+    }
+    for(var h3=0;h3<NUM_HID;h3++){
+      for(var o2=0;o2<NUM_OUT;o2++){
+        setWeightLabel('lbl-ho-'+h3+'-'+o2, state.wHO[h3][o2]);
+      }
+    }
+
+    // edge color + thickness
+    for(var i3=0;i3<NUM_IN;i3++){
+      for(var h4=0;h4<NUM_HID;h4++){
+        setEdgeStyle('edge-ih-'+i3+'-'+h4, state.wIH[i3][h4]);
+      }
+    }
+    for(var h5=0;h5<NUM_HID;h5++){
+      for(var o3=0;o3<NUM_OUT;o3++){
+        setEdgeStyle('edge-ho-'+h5+'-'+o3, state.wHO[h5][o3]);
+      }
+    }
+
+    // determine active selection: pinned > hover > step (walk mode only)
+    var sel = state.pinned || state.hover || (state.mode==='walk' ? stepHighlight(state.step) : null);
+    var hl = highlightFor(sel);
+
+    document.querySelectorAll('.node').forEach(function(n){
+      n.classList.remove('active','dim');
+      if(hl){
+        var id = n.id.replace('node-','');
+        if(hl.nodes.has(id)) n.classList.add('active');
+        else n.classList.add('dim');
+      }
+    });
+    document.querySelectorAll('.edge').forEach(function(e){
+      e.classList.remove('active','dim');
+      if(hl){
+        if(hl.edges.has(e.id)) e.classList.add('active');
+        else e.classList.add('dim');
+      }
+    });
+    document.querySelectorAll('.wlabel').forEach(function(w){
+      w.classList.remove('active','dim');
+      if(hl){
+        var eid = 'edge-' + w.id.replace('lbl-','');
+        if(hl.edges.has(eid)) w.classList.add('active');
+        else w.classList.add('dim');
+      }
+    });
+
+    // readout panel: prefer pinned/hover node formula; else if walk-mode step is a compute step, show that
+    var formulaSel = state.pinned || state.hover;
+    if(!formulaSel && state.mode==='walk'){
+      var s = STEPS[state.step];
+      if(s.type==='hidden') formulaSel = {type:'hidden', index:s.index};
+      if(s.type==='output') formulaSel = {type:'output', index:s.index};
+    }
+    var body = document.getElementById('readoutBody');
+    var html = formulaHTML(formulaSel);
+    if(html){ body.className=''; body.innerHTML = html; }
+    else { body.className='empty'; body.textContent = 'Hover or click a hidden / output node to see how its value is computed.'; }
+
+    // walkthrough panel
+    if(state.mode==='walk'){
+      document.getElementById('walkPanel').style.display='block';
+      document.getElementById('stepCount').textContent = 'STEP '+(state.step+1)+' / '+STEPS.length;
+      document.getElementById('stepText').textContent = narrativeFor(state.step);
+      document.getElementById('backBtn').disabled = state.step===0;
+      var nextBtn = document.getElementById('nextBtn');
+      if(state.step === STEPS.length-1){
+        nextBtn.textContent = 'Unlock free play →';
+      } else {
+        nextBtn.textContent = 'Next →';
+      }
+      var dots = document.getElementById('dots');
+      dots.innerHTML='';
+      STEPS.forEach(function(_,i){
+        var d = document.createElement('span');
+        if(i<=state.step) d.className='on';
+        dots.appendChild(d);
+      });
+    } else {
+      document.getElementById('walkPanel').style.display='none';
+    }
+
+    syncFaders();
+  }
+
+  function setWeightLabel(id, v){
+    var g = document.getElementById(id);
+    g.classList.remove('pos','neg');
+    g.classList.add(v>=0?'pos':'neg');
+    g.querySelector('text').textContent = fmtParen(v);
+  }
+  function setEdgeStyle(id, v){
+    var e = document.getElementById(id);
+    e.classList.remove('pos','neg');
+    e.classList.add(v>=0?'pos':'neg');
+    var mag = Math.min(Math.abs(v),1);
+    e.style.strokeWidth = (1.4 + mag*3.4).toFixed(2);
+  }
+
+  // ---------------- walkthrough controls ----------------
+  document.getElementById('nextBtn').addEventListener('click', function(){
+    if(state.step < STEPS.length-1){ state.step++; render(); }
+    else { unlockFree(); switchTab('free'); }
+  });
+  document.getElementById('backBtn').addEventListener('click', function(){
+    if(state.step>0){ state.step--; render(); }
+  });
+  document.getElementById('skipBtn').addEventListener('click', function(){
+    state.step = STEPS.length-1;
+    unlockFree();
+    render();
+  });
+
+  function unlockFree(){
+    if(state.freeUnlocked) return;
+    state.freeUnlocked = true;
+    document.getElementById('tabFree').disabled = false;
+    document.getElementById('lockedNote').style.display='none';
+    document.getElementById('faderGroups').style.display='grid';
+    document.getElementById('consoleHint').textContent = 'Every input and weight, live';
+    var consoleEl = document.getElementById('console');
+    consoleEl.classList.add('open');
+  }
+
+  // ---------------- tabs ----------------
+  function switchTab(mode){
+    state.mode = mode;
+    state.pinned = null; state.hover = null;
+    document.getElementById('tabWalk').classList.toggle('active', mode==='walk');
+    document.getElementById('tabWalk').setAttribute('aria-selected', mode==='walk');
+    document.getElementById('tabFree').classList.toggle('active', mode==='free');
+    document.getElementById('tabFree').setAttribute('aria-selected', mode==='free');
+    render();
+  }
+  document.getElementById('tabWalk').addEventListener('click', function(){ switchTab('walk'); });
+  document.getElementById('tabFree').addEventListener('click', function(){
+    if(!state.freeUnlocked) return;
+    switchTab('free');
+  });
+  document.getElementById('tabFree').disabled = true;
+
+  // ---------------- console drawer ----------------
+  document.getElementById('consoleHead').addEventListener('click', function(){
+    document.getElementById('console').classList.toggle('open');
+  });
+
+  // ---------------- faders (free play) ----------------
+  function buildFaders(){
+    var wrap = document.getElementById('faderGroups');
+    wrap.innerHTML='';
+
+    var g1 = document.createElement('div');
+    g1.className='fader-group';
+    g1.innerHTML = '<h3>Inputs</h3>';
+    for(var i=0;i<NUM_IN;i++){
+      g1.appendChild(makeFader('x'+(i+1), 0, 1, 0.01, state.inputs[i], function(idx){ return function(v){ state.inputs[idx]=v; compute(); render(); }; }(i), 'in-'+i));
+    }
+    wrap.appendChild(g1);
+
+    var g2 = document.createElement('div');
+    g2.className='fader-group';
+    g2.innerHTML = '<h3>Input &rarr; hidden weights</h3>';
+    for(var i2=0;i2<NUM_IN;i2++){
+      for(var h=0;h<NUM_HID;h++){
+        g2.appendChild(makeFader('x'+(i2+1)+'→H'+(h+1), -1, 1, 0.01, state.wIH[i2][h], function(ii,hh){ return function(v){ state.wIH[ii][hh]=v; compute(); render(); }; }(i2,h), 'wih-'+i2+'-'+h));
+      }
+    }
+    wrap.appendChild(g2);
+
+    var g3 = document.createElement('div');
+    g3.className='fader-group';
+    g3.innerHTML = '<h3>Hidden &rarr; output weights</h3>';
+    for(var h2=0;h2<NUM_HID;h2++){
+      for(var o=0;o<NUM_OUT;o++){
+        g3.appendChild(makeFader('H'+(h2+1)+'→O'+(o+1), -1, 1, 0.01, state.wHO[h2][o], function(hh,oo){ return function(v){ state.wHO[hh][oo]=v; compute(); render(); }; }(h2,o), 'who-'+h2+'-'+o));
+      }
+    }
+    wrap.appendChild(g3);
+  }
+
+  function makeFader(labelText, min, max, step, value, onChange, key){
+    var row = document.createElement('div');
+    row.className='fader';
+    var lab = document.createElement('label');
+    lab.textContent = labelText;
+    var input = document.createElement('input');
+    input.type='range'; input.min=min; input.max=max; input.step=step; input.value=value;
+    input.id = 'fader-'+key;
+    var out = document.createElement('output');
+    out.textContent = value.toFixed(2);
+    out.id = 'faderval-'+key;
+    input.addEventListener('input', function(){
+      var v = parseFloat(input.value);
+      out.textContent = v.toFixed(2);
+      onChange(v);
+    });
+    row.appendChild(lab); row.appendChild(input); row.appendChild(out);
+    return row;
+  }
+
+  function syncFaders(){
+    for(var i=0;i<NUM_IN;i++){
+      var fi = document.getElementById('fader-in-'+i);
+      if(fi && document.activeElement!==fi){ fi.value = state.inputs[i]; document.getElementById('faderval-in-'+i).textContent = state.inputs[i].toFixed(2); }
+    }
+    for(var i2=0;i2<NUM_IN;i2++){
+      for(var h=0;h<NUM_HID;h++){
+        var fw = document.getElementById('fader-wih-'+i2+'-'+h);
+        if(fw && document.activeElement!==fw){ fw.value = state.wIH[i2][h]; document.getElementById('faderval-wih-'+i2+'-'+h).textContent = state.wIH[i2][h].toFixed(2); }
+      }
+    }
+    for(var h2=0;h2<NUM_HID;h2++){
+      for(var o=0;o<NUM_OUT;o++){
+        var fw2 = document.getElementById('fader-who-'+h2+'-'+o);
+        if(fw2 && document.activeElement!==fw2){ fw2.value = state.wHO[h2][o]; document.getElementById('faderval-who-'+h2+'-'+o).textContent = state.wHO[h2][o].toFixed(2); }
+      }
+    }
+  }
+
+  // ---------------- header controls ----------------
+  document.getElementById('activationToggle').addEventListener('change', function(e){
+    state.activation = e.target.checked;
+    compute();
+    render();
+  });
+  document.getElementById('randomizeBtn').addEventListener('click', function(){
+    randomizeAll();
+    compute();
+    buildFaders();
+    render();
+  });
+
+  // ---------------- init ----------------
+  randomizeAll();
+  compute();
+  buildFaders();
+  render();
+
+})();
+</script>
+</body>
+</html>
